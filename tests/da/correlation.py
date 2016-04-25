@@ -3,9 +3,10 @@ import math
 import time
 import struct
 import collections
+import functools
 
 pack = numpy.vectorize(lambda i: struct.pack('!f', i))
-expand = numpy.vectorize(lambda b: b + b)
+expand = numpy.vectorize(lambda b: b + b + b)
 sine = numpy.vectorize(lambda i: 10*math.sin(i))
 
 
@@ -53,6 +54,32 @@ for x in numpy.nditer(series):
     last = payload
     last_size = size
 
-print(fn)
-for x in sorted(counter):
-    print(x, counter[x])
+distribution = collections.deque()
+prev = None
+for x in reversed(sorted(counter)):
+    curr = counter[x]
+    if prev is not None:
+        if prev < curr:
+            distribution.appendleft(curr - prev)
+        else:
+            distribution.appendleft(0)
+
+    prev = curr
+
+
+quantile_rate = list()
+prev = None
+for x in range(100, 0, -1):
+    curr = numpy.percentile(distribution, x, interpolation='lower')
+    if prev is not None:
+        quantile_rate.append((prev - curr, curr))
+
+    prev = curr
+
+
+_, bottom = max(quantile_rate)
+
+breaks = list()
+for i, x in enumerate(distribution):
+    if x > bottom:
+        print(i)
