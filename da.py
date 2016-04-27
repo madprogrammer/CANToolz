@@ -9,9 +9,6 @@ pack = numpy.vectorize(lambda i: struct.pack('!f', i) +
                                  struct.pack('!f', math.sin(i)) +
                                  struct.pack('!f', math.sqrt(i)))
 
-sqrt = numpy.vectorize(lambda i: struct.pack('!f', i))
-
-
 def line() -> numpy.array:
     return numpy.arange(0, 1000)
 
@@ -23,7 +20,6 @@ start = time.clock()
 for x in numpy.nditer(series):
     sep.apply(bytearray(x))
 
-print(sqrt(line()))
 print(time.clock() - start)
 print(sep.indexes())
 
