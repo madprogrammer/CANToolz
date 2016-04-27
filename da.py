@@ -9,6 +9,7 @@ pack = numpy.vectorize(lambda i: struct.pack('!f', i) +
                                  struct.pack('!f', math.sin(i)) +
                                  struct.pack('!f', math.sqrt(i)))
 
+
 def line() -> numpy.array:
     return numpy.arange(0, 1000)
 
