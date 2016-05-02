@@ -1,26 +1,30 @@
-import numpy
-import math
-import time
-import struct
+#!/usr/bin/env python
 
+from sys import stdin
+from libs.da.stream_message import StreamMessage
+from libs.da.aggregator import Aggregator
 from libs.da.separator import Separator
 
-pack = numpy.vectorize(lambda i: struct.pack('!f', i) +
-                                 struct.pack('!f', math.sin(i)) +
-                                 struct.pack('!f', math.sqrt(i)))
+
+def dump_message(line: str) -> StreamMessage:
+    components = str.split(line[:-1], ':')
+    return StreamMessage(components[0],
+                         bytes.fromhex(components[2]),
+                         int(components[1]))
 
 
-def line() -> numpy.array:
-    return numpy.arange(0, 1000)
+def main():
+    aggregator = Aggregator(lambda stream: Separator(stream))
 
-series = pack(line())
-sep = Separator()
+    for line in stdin:
+        aggregator(dump_message(line))
 
-start = time.clock()
+    for separator in aggregator:
+        parts = len(aggregator[separator])
+        if parts > 1:
+            print(separator, parts)
 
-for x in numpy.nditer(series):
-    sep.apply(bytearray(x))
 
-print(time.clock() - start)
-print(sep.indexes())
+if __name__ == '__main__':
+    main()
 
