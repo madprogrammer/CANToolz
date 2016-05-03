@@ -1,44 +1,32 @@
 from collections import Counter, deque
-from itertools import chain
 from . import bits
 from . import stats
-from .i_stream_filter import IStreamFilter
+from .stream_processor import StreamProcessor
 from .stream_message import StreamMessage
 
 
-class Separator(IStreamFilter):
-
-    def __init__(self, stream: str):
+class Separator(StreamProcessor):
+    def __init__(self):
         self._distribution = Counter()
         self._state = None
-        self._chain = chain()
-        self._stream = stream
 
-    def __len__(self):
-        return len(self._indexes())
+    def process(self, msg: StreamMessage):
+        state_size = 0 if self._state is None else len(self._state)
+        msg_size = len(msg)
 
-    def read(self) -> iter:
-        result = self._chain
-        self._chain = chain()
-        return result
-
-    def write(self, msg: StreamMessage):
-        if self._state is not None and self._state.size == msg.size:
+        if self._state is not None and state_size == msg_size:
             self._count_bits(bits.xor(
-                msg.payload, self._state.payload, msg.size), msg.size)
+                bytes(msg), bytes(self._state), msg_size), msg_size)
 
         self._state = msg
-        self._chain = chain(self._chain, self._reader())
 
-    def _reader(self):
         start = 0
 
         for i, end in enumerate(self._indexes()):
-            size = end - start
-            payload = bits.read(self._state.payload, start, size)
+            size, payload = bits.read(bytes(self._state), start, end - start)
 
-            yield StreamMessage(
-                self._stream + ':' + str(i), payload, size)
+            yield StreamMessage.from_payload(
+                msg.stream + ':' + str(i), payload, size)
 
             start = end
 
@@ -51,7 +39,7 @@ class Separator(IStreamFilter):
         gaps = deque()
         prev = None
 
-        for x in range(self._state.size * 8, 0, -1):
+        for x in range(len(self._state) * 8, 0, -1):
             curr = self._distribution[x - 1]
 
             if prev is not None:
@@ -73,5 +61,5 @@ class Separator(IStreamFilter):
             if x > edge:
                 indexes.append(i + 1)
 
-        indexes.append(self._state.size * 8)
+        indexes.append(len(self._state) * 8)
         return indexes

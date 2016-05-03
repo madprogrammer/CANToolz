@@ -1,3 +1,4 @@
+import math
 
 
 def xor(a: bytes, b: bytes, l: int) -> bytes:
@@ -6,7 +7,7 @@ def xor(a: bytes, b: bytes, l: int) -> bytes:
     for i in range(l):
         result[i] = a[i] ^ b[i]
 
-    return result
+    return bytes(result)
 
 
 def test(frame: bytes, offset: int) -> bool:
@@ -16,9 +17,19 @@ def test(frame: bytes, offset: int) -> bool:
     return byte & mask > 0
 
 
+def align(frame: bytes, size: int, align: int) -> bytes:
+    result = bytearray(align)
+
+    for i in range(align):
+        if i < size:
+            result[i] = frame[i]
+
+    return bytes(result)
+
+
 # assert slice_int(struct.pack('!I',
 #   int('11110111111111111111111111111111', 2)), 0, 8) == int('11110111', 2)
-def read(frame: bytes, offset: int, limit: int) -> bytes:
+def read_int(frame: bytes, offset: int, limit: int) -> int:
     result = 0
     size = len(frame)
 
@@ -40,4 +51,24 @@ def read(frame: bytes, offset: int, limit: int) -> bytes:
     return result
 
 
+def read(frame: bytes, offset: int, limit: int) -> (int, bytes):
+    frame_size = len(frame)
+    result_size = math.ceil(limit / 8)
+    result = bytearray(result_size)
 
+    for i, x in enumerate(range(offset + limit, offset, -8)):
+        l = x // 8
+        h = l - 1
+        bit = x % 8
+
+        if l < frame_size:
+            byte = frame[h] << bit & 255 | frame[l] >> 8 - bit
+        else:
+            byte = frame[h] << bit & 255
+
+        if x - 8 < offset:
+            byte &= 255 >> offset - x + 8
+
+        result[result_size - i - 1] = byte
+
+    return result_size, bytes(result)
