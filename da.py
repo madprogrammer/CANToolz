@@ -1,63 +1,95 @@
 #!/usr/bin/env python
 
-from sys import stdin
 from collections import deque
-from libs.da.stream_message import StreamMessage
-from libs.da.stream_processor import StreamProcessor
-from libs.da.subnet import Subnet
-from libs.da.separator import Separator
-from libs.da.normalizer import Normalizer
-from libs.da.combinations import Combinations
-from libs.da.selector import Selector
+from sys import stdin
+from struct import unpack
+
+from libs.utils import bits
+from libs.stream.normalizer import Normalizer
+from libs.stream.processor import Processor
+from libs.stream.subnet import Subnet
+from libs.stream.selector import Selector
+from libs.stream.integrator import Integrator
+from libs.stream.forced_sampler import ForcedSampler
+from libs.stream.separator import Separator
 
 
-class Convolution(StreamProcessor):
-    def __init__(self, a: str, b: str, size: int):
-        self._size = size
-        self._a = a
-        self._b = b
-        self._a_slider = deque()
-        self._b_slider = deque()
+class RawMessage:
+    def __init__(self, components: list):
+        self._stream = components[0]
+        self._size = int(components[1])
+        self._payload = bytes.fromhex(components[2])
 
-    def process(self, msg: StreamMessage):
-        if msg.stream == self._a:
-            self._a_slider.append(msg._int)
+    def __bytes__(self):
+        return self._payload
 
-        if msg.stream == self._b:
-            self._b_slider.append(msg._int)
+    def __len__(self):
+        return self._size
 
-        if len(self._b_slider) == len(self._a_slider) > self._size:
-            corr = 0
-            for a, b in zip(self._b_slider, self._a_slider):
-                corr += a * b
-
-            print(self._a, self._b, corr)
-
-            self._a_slider.popleft()
-            self._b_slider.popleft()
-
-        if False:
-            yield
+    def __str__(self):
+        return self._stream
 
 
-def dump_source(source: iter) -> iter:
+class SeparatedMessage:
+
+    @classmethod
+    def builder(cls, raw: RawMessage, index: int, payload: bytes, size: int):
+        return cls(str(raw) + '|' + str(index),
+                   unpack('!I', bits.align(payload, size, 4))[0])
+
+    def __init__(self, stream: str, value: int):
+        self._stream = stream
+        self._value = value
+
+    def __float__(self):
+        return float(self._value)
+
+    def __str__(self):
+        return self._stream
+
+
+class FloatMessage:
+    @classmethod
+    def conv(cls, a, b):
+        return cls(str(a) + '*' + str(b), float(a) * float(b))
+
+    @classmethod
+    def simple(cls, raw, value: float):
+        return cls(str(raw), value)
+
+    def __init__(self, stream: str, value: float):
+        self._stream = stream
+        self._value = value
+
+    def __float__(self):
+        return self._value
+
+    def __str__(self):
+        return self._stream
+
+
+def input_reader(source):
     for line in source:
-        components = str.split(line[:-1], ':')
-        yield StreamMessage.from_payload(
-            components[0], bytes.fromhex(components[2]), int(components[1]))
-        yield StreamMessage.from_payload(
-            components[0] + '!', bytes.fromhex(components[2]), int(components[1]))
+        yield RawMessage(str.split(line[:-1], ':'))
+
+
+def same(x):
+    return x
 
 
 def main():
-    separate = Subnet(lambda: Selector(['0x16f86250', '0x16f86250!']) * Separator())
-    normalize = Subnet(lambda: Selector(['0x16f86250:0', '0x16f86250!:0']) * Normalizer(5))
-    correlate = Combinations(2, lambda a, b: Convolution(a, b, 5))
+    dump = input_reader(stdin)
+    align = ForcedSampler(1, same)
+    subnet = Subnet(lambda stream: Separator(SeparatedMessage.builder))
 
-    separated = separate(dump_source(stdin))
+    normalize = Subnet(lambda stream: Normalizer(10, FloatMessage.simple))
 
-    for msg in correlate(normalize(separated)):
-        print(msg.stream, msg._int)
+    conv = ForcedSampler(2, FloatMessage.conv)
+    integrate = Integrator(10, FloatMessage.simple)
+
+    for msg in integrate(conv(normalize(subnet(align(dump))))):
+        if float(msg) > 1:
+            print(msg, float(msg))
 
 
 if __name__ == '__main__':

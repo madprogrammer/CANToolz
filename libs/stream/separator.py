@@ -1,32 +1,32 @@
-from collections import Counter, deque
-from . import bits
-from . import stats
-from .stream_processor import StreamProcessor
-from .stream_message import StreamMessage
+from collections import Counter, deque, Iterable
+
+from libs.stream.processor import Processor
+from libs.utils import bits
+from libs.utils import stats
 
 
-class Separator(StreamProcessor):
-    def __init__(self):
+class Separator(Processor):
+    def __init__(self, message_builder: callable):
+        self._message_builder = message_builder
         self._distribution = Counter()
         self._state = None
 
-    def process(self, msg: StreamMessage):
-        state_size = 0 if self._state is None else len(self._state)
-        msg_size = len(msg)
+    def process(self, message) -> Iterable:
+        msg_size = len(message)
 
-        if self._state is not None and state_size == msg_size:
+        if self._state is not None:
             self._count_bits(bits.xor(
-                bytes(msg), bytes(self._state), msg_size), msg_size)
+                bytes(message), bytes(self._state), msg_size), msg_size)
 
-        self._state = msg
+        self._state = message
 
         start = 0
 
         for i, end in enumerate(self._indexes()):
             size, payload = bits.read(bytes(self._state), start, end - start)
 
-            yield StreamMessage.from_payload(
-                msg.stream + ':' + str(i), payload, size)
+            yield self._message_builder(
+                message, i, payload, size)
 
             start = end
 
@@ -62,4 +62,5 @@ class Separator(StreamProcessor):
                 indexes.append(i + 1)
 
         indexes.append(len(self._state) * 8)
+
         return indexes
