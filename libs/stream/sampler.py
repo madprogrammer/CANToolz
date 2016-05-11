@@ -4,10 +4,11 @@ from libs.stream.processor import Processor
 
 
 class Sampler(Processor):
-    def __init__(self):
+    def __init__(self, stateless: bool = False):
         self._tick = Counter()
         self._state = dict()
         self._joins = dict()
+        self._stateless = stateless
 
     def process(self, message) -> Iterable:
         stream = str(message)
@@ -22,6 +23,9 @@ class Sampler(Processor):
         for bind in self._joins:
             if all(map(self._stream_in_state, bind)):
                 yield self._joins[bind](*map(self._stream_state, bind))
+
+        if self._stateless:
+            self._state.clear()
 
         self._tick.clear()
 

@@ -21,8 +21,8 @@ def align(frame: bytes, size: int, align: int) -> bytes:
     result = bytearray(align)
 
     for i in range(align):
-        if i < size:
-            result[i] = frame[i]
+        if align - i - 1 < size:
+            result[i] = frame[align - i - 1]
 
     return bytes(result)
 

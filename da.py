@@ -85,7 +85,7 @@ def main():
     normalize = Subnet(lambda stream: Normalizer(10, FloatMessage.simple))
 
     conv = ForcedSampler(2, FloatMessage.conv)
-    integrate = Integrator(10, FloatMessage.simple)
+    integrate = Integrator(100, FloatMessage.simple)
 
     for msg in integrate(conv(normalize(subnet(align(dump))))):
         if float(msg) > 1:

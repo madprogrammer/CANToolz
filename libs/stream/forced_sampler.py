@@ -9,7 +9,7 @@ class ForcedSampler(Processor):
     def __init__(self, power: int, joiner: callable):
         self._power = power
         self._joiner = joiner
-        self._sampler = Sampler()
+        self._sampler = Sampler(True)
         self._streams = set()
 
     def process(self, message) -> Iterable:
