@@ -18,14 +18,7 @@ class RawMessage:
         self._size = int(size)
         self._payload = bytes(data)
 
-    def __bytes__(self):
-        return self._payload
-
-    def __len__(self):
-        return self._size
-
-    def __str__(self):
-        return self._stream
+    944
 
 
 class SeparatedMessage:
