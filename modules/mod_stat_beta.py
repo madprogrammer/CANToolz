@@ -14,6 +14,7 @@ class mod_stat_beta(CANModule):
 
     def show_fields(self, zd):
         str = ""
+        str += len(self.subnet._devices)
         for key, value in self.subnet._devices.items():
             str += "ECU: " + str(key) + ", INDEXES: " + str(value._indexes())
         return str
@@ -21,5 +22,6 @@ class mod_stat_beta(CANModule):
     # Effect (could be fuzz operation, sniff, filter or whatever)
     def do_effect(self, can_msg, args):
         if can_msg.CANData:
+            print("X: "+str(can_msg.CANFrame))
             self.subnet.process(can_msg.CANFrame) # ADD NEW CAN MESSAGE
         return can_msg
