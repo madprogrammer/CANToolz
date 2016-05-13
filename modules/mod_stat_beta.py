@@ -23,5 +23,7 @@ class mod_stat_beta(CANModule):
     def do_effect(self, can_msg, args):
         if can_msg.CANData:
             print("X: "+str(can_msg.CANFrame))
-            self.subnet.process(can_msg.CANFrame) # ADD NEW CAN MESSAGE
+            for _ in self.subnet.process(can_msg.CANFrame):
+                pass
+            
         return can_msg
