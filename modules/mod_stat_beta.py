@@ -13,10 +13,10 @@ class mod_stat_beta(CANModule):
         self.subnet = Subnet(lambda stream: Separator(SeparatedMessage.builder))
 
     def show_fields(self, zd):
-        str = ""
+        ret_str = ""
         
         for key, value in self.subnet._devices.items():
-            str += "ECU: " + str(key) + ", INDEXES: " + ",".join(value._indexes())
+            ret_str += "ECU: " + str(key) + ", INDEXES: " + ",".join(value._indexes())
             
         return str
 
