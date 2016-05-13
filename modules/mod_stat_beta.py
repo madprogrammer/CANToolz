@@ -12,11 +12,11 @@ class mod_stat_beta(CANModule):
         self._cmdList['s'] = ["Show all fields", 0, "", self.show_fields, True]
         self.subnet = Subnet(lambda stream: Separator(SeparatedMessage.builder))
 
-    def show_fields(self):
+    def show_fields(self, zd):
         str = ""
         for key, value in self.subnet._devices.items():
             str += "ECU: " + str(key) + ", INDEXES: " + str(value._indexes())
-            
+
     # Effect (could be fuzz operation, sniff, filter or whatever)
     def do_effect(self, can_msg, args):
         if can_msg.CANData:
