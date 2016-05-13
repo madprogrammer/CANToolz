@@ -30,7 +30,7 @@ class CANMessage:
         return self.frame_id
 
     def __str__(self):
-        return str(self.frame_id)
+        return hex(self.frame_id)
 
     @property
     def frame_raw_id(self):

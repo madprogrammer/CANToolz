@@ -16,9 +16,9 @@ class mod_stat_beta(CANModule):
         ret_str = ""
         
         for key, value in self.subnet._devices.items():
-            ret_str += "ECU: " + str(key) + ", INDEXES: " + ",".join(value._indexes())
+            ret_str += "ECU: " + str(key) + ", INDEXES: " + str(value._indexes()) + "\n"
             
-        return str
+        return ret_str
 
     # Effect (could be fuzz operation, sniff, filter or whatever)
     def do_effect(self, can_msg, args):
