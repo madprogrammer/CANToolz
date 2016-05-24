@@ -1,6 +1,33 @@
+## Version 3.3-1
+ - **gen_ping** - sub-commands scan added, based on list or range.
+ 
+## Version 3.3-0
+ - **mod_stat** - fields enumeration: this simple feature trying to detect CAN FRAME structure and extract fields
+ - **mod_stat** - META-DATA feature added: now we can describe fields by bits
+ 
+## Version 3.2-4
+ - START/STOP now working right... sorry ;)
+ 
+## Version 3.2-3
+ - USBtin bugs fixed... sorry ;)
+ 
+## Version 3.2-2
+ - engine do_stop race-condition fixed... sorry :-)
+ 
+## Version 3.2-1
+ - USBTin bug with restart fixed... sorry :-)
+
+## Version 3.2-0
+ - lib module: cmd now can be any string, not just 1 byte
+ - CAN MIDI music R&D example added: Specil for PHDays forum! Done by Hardware Village crew!
+ - setup file added
+ - **simple_io** module added
+ - Exit supported, USBtin/CANBusTriple on exit - closing COM port
+ - **mod_firewall**, now body can be filtered not by list but by HEX ASCII also, more user-friendly
+ 
 ## Version 3.0-0
 ### CHANGES
- - **ecu_controls** module added, noew you can configure ECU control and monitoring (regex now). Very useful as API 8)
+ - **ecu_controls** module added, now you can configure ECU control and monitoring (regex now). Very useful as API 8)
  - cmd parametrisation changed a bit
  - **mod_firewall** can filter on BUS values!
  - by default all gen_* classes uses it's own BUS value (if not set then module name as BUS used)
@@ -17,7 +44,7 @@
  
 ## Version 2.6-0
 ### CHANGES
- - mod_stat refactoring: now we can support multi-biffers for sniffing and diff
+ - mod_stat refactoring: now we can support multi-buffers for sniffing and diff
  
 ## Version 2.5-0
 ### CHANGES

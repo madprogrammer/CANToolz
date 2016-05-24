@@ -1,12 +1,12 @@
-from libs.module import *
-from libs.uds import *
-from libs.frag import *
+from cantoolz.module import *
+from cantoolz.uds import *
+from cantoolz.frag import *
 import json
 import re
 import collections
 import ast
 import time
-
+from cantoolz.correl import *
 
 class mod_stat(CANModule):
     name = "Service discovery and statistic"
@@ -39,11 +39,12 @@ class mod_stat(CANModule):
         self.meta_data = {}
         self._bodyList = collections.OrderedDict()
         self.shift = params.get('uds_shift', 8)
+        self.subnet = Subnet(lambda stream: Separator(SeparatedMessage.builder))
 
         if 'meta_file' in params:
             self.dprint(1, self.do_load_meta(params['meta_file']))
 
-        self._cmdList['p'] = ["Print current table", 0, "", self.do_print, True]
+        self._cmdList['p'] = ["Print current table",1, "[index]", self.do_print, True]
 
         self._cmdList['a'] = ["Analyses of captured traffic", 1, "<UDS|ISO|FRAG|ALL(defaut)>,[buffer index]", self.do_anal, True]
         self._cmdList['u'] = ["    - UDS shift value",1,"[shift value]", self.change_shift, True]
@@ -55,14 +56,19 @@ class mod_stat(CANModule):
         self._cmdList['Y'] = ["Dump Diff in replay format", 1, "<filename>,[buffer index ,buffer index], [uniq values max]", self.print_dump_diff, True]
         self._cmdList['y'] = ["Dump Diff in replay format (new ID)", 1, "<filename>,[buffer index 1] , [buffer index 2]", self.print_dump_diff_id, True]
         self._cmdList['F'] = ["Search ID in all buffers", 1, "<ID>", self.search_id, True]
+        self._cmdList['show'] = ["Show detected amount of fields for all ECU (EXPEREMENTAL)", 1, "[buffer index]", self.show_fields, True]
+        self._cmdList['fields'] = ["Show values in fields for chosen ECU (EXPEREMENTAL)", 1, "<ECU ID>[, hex|bin|int [, buffer index ]]", self.show_fields_ecu, True]
+
         self._cmdList['c'] = ["Clean table, remove buffers", 0, "", self.do_clean, True]
 
         self._cmdList['i'] = ["Meta-data: add description for frames", 1, "<ID>, <data regex ASCII HEX>, <description>", self.do_add_meta_descr_data, True]
+        self._cmdList['bits'] = ["Meta-data: bits fields description", 1, "<ID>, <LEN>, <LAST BIT INDEX>:<DESCRIPTION>[,...]", self.do_add_meta_bit_data, True]
         self._cmdList['l'] = ["Load meta-data", 1, "<filename>", self.do_load_meta, True]
         self._cmdList['z'] = ["Save meta-data", 1, "<filename>", self.do_save_meta, True]
         self._cmdList['r'] = ["Dump all buffers in replay format", 1, " <filename>, [index]", self.do_dump_replay, True]
         self._cmdList['d'] = ["Dump STAT (all buffers) in CSV format", 1, " <filename>, [index]", self.do_dump_csv, True]
         self._cmdList['g'] = ["Get DELAY value for gen_ping/gen_fuzz (EXPERIMENTAL)",1,"<Bus SPEED in Kb/s>", self.get_delay, True]
+
 
     def get_delay(self, def_in, speed):
         _speed = float(speed)*1024
@@ -81,6 +87,25 @@ class mod_stat(CANModule):
             value = int(val)
         self.shift = value
         return "UDS shift: " + hex(self.shift)
+
+    def do_add_meta_bit_data(self, def_in, input_params):
+        try:
+            fid, leng = input_params.split(',')[0:2]
+            descr = input_params.split(',')[2:]
+            if fid.strip().find('0x') == 0:
+                num_fid = int(fid, 16)
+            else:
+                num_fid = int(fid)
+            if 'bits' not in self.meta_data:
+                self.meta_data['bits'] = {}
+            bitsX = []
+            for dsc in descr:
+                bitsX.append({ dsc.split(":")[0].strip():{int(dsc.split(":")[1]):dsc.split(":")[2].strip()}})
+            self.meta_data['bits'][(num_fid, int(leng))] = bitsX
+
+            return "Fields data has been added"
+        except Exception as e:
+            return "Fields data META error: " + str(e)
 
     def do_add_meta_descr_data(self, def_in, input_params):
         try:
@@ -105,6 +130,9 @@ class mod_stat(CANModule):
                 if(re.match(body, self.get_hex(msg), re.IGNORECASE)):
                     return str(descrs[(key, body)])
         return "  "
+
+    def get_meta_bits(self, fid, len):
+        return self.meta_data.get('bits', {}).get((fid, len), None)
 
 
     def do_load_meta(self, def_in, filename):
@@ -432,15 +460,31 @@ class mod_stat(CANModule):
             _name = open(name.strip(), 'w')
             _name.write("BUS,ID,LENGTH,MESSAGE,ASCII,COMMENT,COUNT\n")
             for fid, lst in self._bodyList.items():
-                for (len, msg, bus, mod), cnt in lst.items():
-                    if self.is_ascii(msg):
-                        data_ascii = '"' + self.ret_ascii(msg) + '"'
-                    else:
-                        data_ascii = ""
-                    _name.write(
-                        str(bus) + "," + hex(fid) + "," + str(len) + "," + self.get_hex(msg) + ',' + data_ascii + ',' +\
+                for (lenX, msg, bus, mod), cnt in lst.items():
+
+                    format_ = self.get_meta_bits(fid,lenX)
+                    if not format_:
+                        if self.is_ascii(msg):
+                            data_ascii = self.ret_ascii(msg)
+                        else:
+                            data_ascii = "  "
+                        _name.write(
+                        str(bus) + "," + hex(fid) + "," + str(lenX) + "," + self.get_hex(msg) + ',' + data_ascii + ',' +\
                         "\"" + self.get_meta_descr(fid, msg) + "\"" + ',' + str(cnt) + "\n"
-                    )
+                        )
+                    else:
+                        idx_0 = 0
+                        msg_s = ""
+                        for  bitz in format_:
+                            fmt = list(bitz.keys())[0]
+                            idx = list(list(bitz.values())[0].keys())[0]
+                            descr = list(list(bitz.values())[0].values())[0]
+                            msg_s += descr + ": " + self.get_data_in_format(msg, idx_0, idx, fmt) + " "
+                        _name.write(
+                        str(bus) + "," + hex(fid) + "," + str(lenX) + "," + msg_s + ',' + " " + ',' +\
+                        "\"" + self.get_meta_descr(fid, msg) + "\"" + ',' + str(cnt) + "\n"
+                        )
+
         except Exception as e:
             self.dprint(2, "can't open log")
             return str(e)
@@ -473,7 +517,6 @@ class mod_stat(CANModule):
         return self.print_diff_orig(1, idx1, idx2, 8 * 256)
 
     def print_diff_orig(self, mode, idx1, idx2, rang):
-
         table1 = self.create_short_table(self.all_frames[idx1]['buf'])
         table2 = self.create_short_table(self.all_frames[idx2]['buf'])
         table3 = self.create_short_table(self.all_frames[idx1]['buf'] + self.all_frames[idx2]['buf'])
@@ -527,11 +570,22 @@ class mod_stat(CANModule):
         # http://stackoverflow.com/questions/3685195/line-up-columns-of-numbers-print-output-in-table-format
         for fid, lst in self._bodyList.items():
             for (lenX, msg, bus, mod), cnt in lst.items():
-                if self.is_ascii(msg):
-                    data_ascii = self.ret_ascii(msg)
+                format_ = self.get_meta_bits(fid, lenX)
+                if not format_:
+                    if self.is_ascii(msg):
+                        data_ascii = self.ret_ascii(msg)
+                    else:
+                        data_ascii = "  "
+                    rows.append([str(bus),hex(fid), str(lenX), self.get_hex(msg), data_ascii, self.get_meta_descr(fid, msg), str(cnt)])
                 else:
-                    data_ascii = "  "
-                rows.append([str(bus),hex(fid), str(lenX), self.get_hex(msg), data_ascii, self.get_meta_descr(fid, msg), str(cnt)])
+                    idx_0 = 0
+                    msg_s = ""
+                    for  bitz in format_:
+                        fmt = list(bitz.keys())[0]
+                        idx = list(list(bitz.values())[0].keys())[0]
+                        descr = list(list(bitz.values())[0].values())[0]
+                        msg_s += descr + ": " + self.get_data_in_format(msg, idx_0, idx, fmt) + " "
+                    rows.append([str(bus),hex(fid), str(lenX), msg_s, " ", self.get_meta_descr(fid, msg), str(cnt)])
 
         cols = list(zip(*rows))
         col_widths = [ max(len(value) for value in col) for col in cols ]
@@ -551,3 +605,110 @@ class mod_stat(CANModule):
         if can_msg.CANData:
             self.all_frames[self._index]['buf'].append(can_msg)
         return can_msg
+
+    def get_data_in_format(self, data, idx_1: int, idx_2: int, format: str):
+        bin_data = ''
+        for byte in data:
+            bin_data += bin(byte)[2:].zfill(8)
+
+        selected_value = int(bin_data[idx_1:idx_2], 2)
+
+        if format.strip() in ["bin", "b","binary"]:
+            return bin(selected_value)[2:]
+        elif format.strip() in ["hex", "h"]:
+            return hex(selected_value)[2:]
+        elif format.strip() in ["int","i"]:
+            return str(selected_value)
+        elif format.strip() in ["ascii","a"]:
+            return self.ret_ascii(bytes.fromhex((hex(selected_value)[2:])))
+        else:
+            return hex(selected_value)[2:]
+
+    def show_fields_ecu(self, zd, ecu_id):
+
+        _index = -1
+        format = "bin"
+        if len(ecu_id.strip().split(",")) == 2:
+            format = str(ecu_id.strip().split(",")[1].strip())
+        elif len(ecu_id.strip().split(",")) == 3:
+            _index = int(ecu_id.strip().split(",")[2])
+            format = ecu_id.strip().split(",")[1].strip()
+
+
+        ecu_id = ecu_id.strip().split(",")[0]
+
+        if ecu_id.strip()[0:2] == '0x':
+            ecu_id = int(ecu_id,16)
+        else:
+            ecu_id = int(ecu_id)
+
+
+
+        table = "Data by fields in ECU: " + hex(ecu_id) + "\n\n"
+        temp_buf = []
+
+        self.show_fields(0, str(_index))
+
+        if _index == -1:
+            for buf in self.all_frames:
+                temp_buf = temp_buf + buf['buf']
+        else:
+            temp_buf = self.all_frames[_index]['buf']
+
+        _bodyList = self.create_short_table(temp_buf)
+        list_idx = {}
+        for key, value in self.subnet._devices.items():
+
+            if str(key).split(":")[0][0:2] == '0x':
+                _ecu_id = int(str(key).split(":")[0], 16)
+            else:
+                _ecu_id = int(str(key).split(":")[0])
+            if _ecu_id == ecu_id:
+                list_idx[int(str(key).split(":")[1])] = [value._indexes()]
+
+        if ecu_id in _bodyList:
+            for (lenX, msg, bus, mod), cnt in _bodyList[ecu_id].items():
+                tmp_f = []
+                idx_0 = 0
+                for idx in list_idx[lenX][0]:
+                    tmp_f.append(self.get_data_in_format(msg, idx_0, idx, format))
+                    idx_0 = idx
+                list_idx[lenX].append(tmp_f)
+
+        for lenY, msg in list_idx.items():
+            table += "\nby length: " + str(lenY) + "\n\n"
+            cols = list(zip(*msg[1:]))
+            col_widths = [max(len(value) for value in col) for col in cols]
+            format_table = '    '.join(['%%-%ds' % width for width in col_widths ])
+            for ms in msg[1:]:
+                table += format_table % tuple(ms) + "\n"
+            table += ""
+
+        return table
+
+    def show_fields(self, zd = 0, _index = "-1"):
+        table = ""
+
+        _index = int(_index)
+        temp_buf = []
+        if _index == -1:
+            for buf in self.all_frames:
+                temp_buf = temp_buf + buf['buf']
+        else:
+            temp_buf = self.all_frames[_index]['buf']
+
+        for can_msg in temp_buf:
+            for _ in self.subnet.process(can_msg.CANFrame):
+                    pass
+        rows = []
+        for key, value in self.subnet._devices.items():
+            rows.append(["ECU: " + str(key).split(":")[0], " Length: " + str(key).split(":")[1]," FIELDS DETECTED: " + str(len(value._indexes()))])
+
+        cols = list(zip(*rows))
+        col_widths = [max(len(value) for value in col) for col in cols]
+        format_table = '    '.join(['%%-%ds' % width for width in col_widths ])
+        for row in rows:
+            table += format_table % tuple(row) + "\n"
+        table += ""
+
+        return table

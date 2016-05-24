@@ -1,8 +1,7 @@
 import sys
 import threading
-from libs.can import *
-
-
+from cantoolz.can import *
+import time
 '''
 Main class
 '''
@@ -27,7 +26,7 @@ class CANSploit:
             print((self.__class__.__name__ + ": " + msg))
 
     def __init__(self):
-        self._version = "0.9b"  # version
+        self._version = "3b"  # version
         self._enabledList = []  # queue of active modules with params
         self._pipes = {}  # two pipes with CANMessages
         self._type = {}  # Pointers on instances here
@@ -36,9 +35,10 @@ class CANSploit:
         self._mainThread = None
         self._stop = threading.Event()
         self._stop.set()
+        self.do_stop_e = threading.Event()
+        self.do_stop_e.clear()
         self._raw = threading.Event()
         self._idc = -1
-        sys.path.append('./modules')
         sys.dont_write_bytecode = True
 
     # Main loop with two pipes
@@ -46,7 +46,7 @@ class CANSploit:
         # Run until STOP
         #error_on_bus = {}
         #error = False
-        while not self._stop.is_set():
+        while not self.do_stop_e.is_set():
             self._pipes = {}
             i = 0
             for name, module, params in self._enabledList:  # Each module
@@ -57,7 +57,7 @@ class CANSploit:
                     module.thr_block.clear()
                     if params['pipe'] not in self._pipes:
                         self._pipes[params['pipe']] = CANSploitMessage()
-
+                    self.dprint(2,"DO EFFECT" + name)
                     self._pipes[params['pipe']] = module.do_effect(self._pipes[params['pipe']], params)
 
                     """
@@ -80,10 +80,14 @@ class CANSploit:
                     """
                     module.thr_block.set()
 
-
+        self.dprint(2,"STOPPING...")
                     # Here when STOP
         for name, module, params in self._enabledList:
+            self.dprint(2,"stopping " + name)
             module.do_stop(params)
+
+        self.do_stop_e.clear()
+        self.dprint(2,"STOPPED")
 
     # Call module command        
     def call_module(self, index, params):
@@ -95,26 +99,43 @@ class CANSploit:
             ret = "Module " + str(index) + " not loaded!"
         return ret
 
+    def engine_exit(self):
+        for name, module, params in self._enabledList:
+            self.dprint(2,"exit for " + name)
+            module.do_exit(params)
+
     # Enable loop        
     def start_loop(self):
-        self._stop.clear()
+        self.dprint(2,"START SIGNAL")
+        if self._stop.is_set() and not self.do_stop_e.is_set():
+            self.do_stop_e.set()
+            for name, module, params in self._enabledList:
+                self.dprint(2,"startingg " + name)
+                module.do_start(params)
+                #params['!error_on_bus'] = False
+                module.thr_block.set()
 
-        for name, module, params in self._enabledList:
-            module.do_start(params)
-            #params['!error_on_bus'] = False
-            module.thr_block.set()
+            self._thread = threading.Thread(target=self.main_loop)
+            self._thread.daemon = True
 
-        self._thread = threading.Thread(target=self.main_loop)
-
-        self._thread.daemon = True
-        self._thread.start()
+            self._stop.clear()
+            self.do_stop_e.clear()
+            self.dprint(2,"GO")
+            self._thread.start()
+            self.dprint(2,"STARTED")
 
         return not self._stop.is_set()
 
     # Pause loop      
     def stop_loop(self):
+        self.dprint(2,"STOP SIGNAL")
+        if not self._stop.is_set() and not self.do_stop_e.is_set():
+            self.do_stop_e.set()
+            while self.do_stop_e.is_set():
+                time.sleep(0.0000001)
+
         self._stop.set()
-        return not self._stop.is_set()
+        return 1
 
     # Current status
     @property
@@ -170,7 +191,7 @@ class CANSploit:
 
     def init_module(self, mod, params):
         namespace = {}
-        self._modules.append(__import__(mod.split("~")[0]))
+        self._modules.append(__import__("cantoolz.modules." + mod.split("~")[0], globals(), locals(), [mod.split("~")[0]]))
         namespace['mod'] = self._modules[-1]
         namespace['params'] = params
         exec('cls = mod.' + mod.split("~")[0] + '(params)', namespace)  # init module

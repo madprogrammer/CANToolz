@@ -1,5 +1,5 @@
 from optparse import OptionParser
-from libs.engine import *
+from cantoolz.engine import *
 import collections
 import re
 import http.server
@@ -82,12 +82,14 @@ class WebConsole(http.server.SimpleHTTPRequestHandler):
                 try:
                     paramz = json.loads(post_data)
                     if self.can_engine.edit_module(int(path_parts[3]), paramz) >= 0:
-
+                        print(path_parts[3])
                         mode = 1 if self.can_engine.get_modules_list()[int(path_parts[3])][1].is_active else 0
+                        print(mode)
                         if mode == 1:
                             self.can_engine.get_modules_list()[int(path_parts[3])][1].do_activate(0, 0)
-                        self.can_engine.get_modules_list()[int(path_parts[3])][1].do_stop(paramz)
-                        self.can_engine.get_modules_list()[int(path_parts[3])][1].do_start(paramz)
+                        if not self.can_engine._stop.is_set():
+                            self.can_engine.get_modules_list()[int(path_parts[3])][1].do_stop(paramz)
+                            self.can_engine.get_modules_list()[int(path_parts[3])][1].do_start(paramz)
                         if mode == 1:
                             self.can_engine.get_modules_list()[int(path_parts[3])][1].do_activate(0, 1)
 
@@ -284,7 +286,9 @@ class UserInterface:
         except KeyboardInterrupt:
             server.shutdown()
             server.server_close()
+            print("Please wait... (do not press ctr-c again!)")
             self.CANEngine.stop_loop()
+            self.CANEngine.engine_exit()
             print("gg bb")
             exit()
 
@@ -297,7 +301,10 @@ class UserInterface:
                 input_ = "stop"
 
             if input_ == 'q' or input_ == 'quit':
+                print("Please wait... (do not press ctr-c again!)")
                 self.CANEngine.stop_loop()
+                self.CANEngine.engine_exit()
+                print("gg bb")
                 self.loop_exit()
             elif input_ == 'start' or input_ == 's':
                 self.CANEngine.start_loop()
@@ -338,8 +345,9 @@ class UserInterface:
                         mode = 1 if self.CANEngine.get_modules_list()[module][1].is_active else 0
                         if mode == 1:
                             self.CANEngine.get_modules_list()[module][1].do_activate(0, 0)
-                        self.CANEngine.get_modules_list()[module][1].do_stop(paramz)
-                        self.CANEngine.get_modules_list()[module][1].do_start(paramz)
+                        if not self.CANEngine._stop.is_set():
+                            self.CANEngine.get_modules_list()[module][1].do_stop(paramz)
+                            self.CANEngine.get_modules_list()[module][1].do_start(paramz)
                         if mode == 1:
                             self.CANEngine.get_modules_list()[module][1].do_activate(0, 1)
                     except Exception as e:
@@ -353,11 +361,11 @@ class UserInterface:
                     _mod = int(match.group(2).strip())
                     _paramz = match.group(3).strip()
                     if 1 == 1:
-                        #                    try:
-                        text = self.CANEngine.call_module(_mod, str(_paramz))
-                        print(text)
-                        #                    except Exception as e:
-                        #                        print "CMD input_ error: "+str(e)
+                        try:
+                            text = self.CANEngine.call_module(_mod, str(_paramz))
+                            print("Response: " + text)
+                        except Exception as e:
+                            print("CMD input_ error: " + str(e))
 
             elif input_[0:4] == 'help' or input_[0:2] == 'h ':
 
