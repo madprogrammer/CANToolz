@@ -40,3 +40,5 @@ libs/engine.py.bak
 2
 .idea/inspectionProfiles/profiles_settings.xml
 .idea/inspectionProfiles/Project_Default.xml
+__pycache__
+.idea
