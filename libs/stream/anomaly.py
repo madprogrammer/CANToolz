@@ -3,10 +3,11 @@ from collections import Iterable, Counter
 from libs.stream.processor import Processor
 
 
-class Distribution(Processor):
-    def __init__(self):
+class Anomaly(Processor):
+    def __init__(self, rate=0.01):
         self._state = Counter()
         self._count = 0
+        self._rate = rate
 
     def process(self, message) -> Iterable:
         point = float(message)
@@ -14,9 +15,10 @@ class Distribution(Processor):
         self._state[point] += 1
         self._count += 1
 
-        yield from ()
+        if point > self._quantile(1 - self._rate):
+            yield message
 
-    def quantile(self, margin) -> float:
+    def _quantile(self, margin) -> float:
         quantile = _Quantile(margin * self._count)
 
         for point in sorted(self._state):

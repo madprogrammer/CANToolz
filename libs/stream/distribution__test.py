@@ -1,13 +1,13 @@
 import unittest
 import numpy
 
-from libs.stream.distribution import Distribution
+from libs.stream.anomaly import Anomaly
 
 
 class DistributionTest(unittest.TestCase):
 
     def testProcess(self):
-        distribution = Distribution()
+        distribution = Anomaly()
 
         for _ in range(0, 100000):
             list(distribution.process(numpy.random.normal()))

@@ -1,5 +1,4 @@
 from libs.module import *
-from libs.correl import *
 
 
 class mod_stat_beta(CANModule):

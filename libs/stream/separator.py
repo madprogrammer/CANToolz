@@ -1,15 +1,21 @@
 from collections import Counter, deque, Iterable
+from struct import unpack
 
 from libs.stream.processor import Processor
 from libs.utils import bits
 from libs.utils import stats
 
+xff = (1 << 16) - 1
+x00 = xff << 16
+
 
 class Separator(Processor):
-    def __init__(self, message_builder: callable):
+    def __init__(self, message_builder: callable, fmt='!I', fmt_size=4):
         self._message_builder = message_builder
         self._distribution = Counter()
         self._state = None
+        self._format = fmt
+        self._format_size = fmt_size
 
     def process(self, message) -> Iterable:
         msg_size = len(message)
@@ -24,9 +30,16 @@ class Separator(Processor):
 
         for i, end in enumerate(self._indexes()):
             size, payload = bits.read(bytes(self._state), start, end - start)
+            value = unpack(
+                self._format, bits.align(payload, size, self._format_size))[0]
 
-            yield self._message_builder(
-                message, i, payload, size)
+            if value & xff == xff:
+                value >>= 16
+
+            if value | x00 == value:
+                value >>= 16
+
+            yield self._message_builder(str(message) + '|' + str(i), value)
 
             start = end
 
