@@ -4,9 +4,8 @@ from struct import unpack
 from libs.stream.processor import Processor
 from libs.utils import bits
 from libs.utils import stats
-
-xff = (1 << 16) - 1
-x00 = xff << 16
+from libs.stream.msg import *
+from bitstring import BitArray
 
 
 class Separator(Processor):
@@ -16,6 +15,7 @@ class Separator(Processor):
         self._state = None
         self._format = fmt
         self._format_size = fmt_size
+        self._result = dict()
 
     def process(self, message) -> Iterable:
         msg_size = len(message)
@@ -26,22 +26,32 @@ class Separator(Processor):
 
         self._state = message
 
-        start = 0
+        left = 0
+        data = bytes(self._state)
 
-        for i, end in enumerate(self._indexes()):
-            size, payload = bits.read(bytes(self._state), start, end - start)
-            value = unpack(
-                self._format, bits.align(payload, size, self._format_size))[0]
+        for i, end in enumerate(self._indexes(str(message))):
+            right = end
+            for bit in range(end, left, -1):
+                if self._distribution[bit] == 0:
+                    right = bit
 
-            if value & xff == xff:
-                value >>= 16
+            if right > left:
+                size, payload = bits.read(data, left, right - left)
 
-            if value | x00 == value:
-                value >>= 16
+                value = unpack(self._format, bits.align(
+                    payload, size, self._format_size))[0]
 
-            yield self._message_builder(str(message) + '|' + str(i), value)
+                stream = str(message) + '|' + str(i)
 
-            start = end
+                if i in self._result and self._result[i] != (left, right):
+                    self._result.clear()
+                    yield BailoutMessage(stream)
+
+                yield self._message_builder(stream, value)
+
+                self._result[i] = (left, right)
+
+            left = end
 
     def _count_bits(self, frame: bytes, size: int):
         for i in range(8 * size):
@@ -49,23 +59,30 @@ class Separator(Processor):
                 self._distribution[i] += 1
 
     def _gaps(self) -> iter:
-        gaps = deque()
-        prev = None
+        length = len(self._state) * 8
+        gaps = [0] * length
+        gap_power = 1
 
-        for x in range(len(self._state) * 8, 0, -1):
+        prev = None
+        for x in range(length, 0, -1):
             curr = self._distribution[x - 1]
 
             if prev is not None:
-                if prev < curr:
-                    gaps.appendleft(curr - prev)
+                gap_size = curr - prev
+                gaps[x] = gap_size
+
+                if gap_size > 0:
+                    gaps[x] = gaps[x] * gap_power
+                elif gap_size == 0:
+                    gap_power += 1
                 else:
-                    gaps.appendleft(0)
+                    gap_power = 1
 
             prev = curr
 
         return gaps
 
-    def _indexes(self) -> iter:
+    def _indexes(self, s) -> iter:
         indexes = list()
         gaps = self._gaps()
         edge = stats.max_dx_edge(gaps)

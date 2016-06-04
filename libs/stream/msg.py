@@ -1,5 +1,6 @@
 import struct
 
+
 class ByteMessage:
 
     @classmethod
@@ -7,8 +8,8 @@ class ByteMessage:
         return cls(str.split(line[:-1], ':'))
 
     def __init__(self, components: list):
-        self._stream = components[0]
         self._size = int(components[1])
+        self._stream = components[0] + 'l' + str(self._size)
         self._payload = bytes.fromhex(components[2])
 
     def __bytes__(self):
@@ -44,9 +45,24 @@ class FloatMessage:
         return struct.pack('!I', int(self._value))
 
 
+class BailoutMessage:
+    def __init__(self, stream):
+        self._stream = stream
+
+    def __str__(self):
+        return self._stream
+
+    def __float__(self):
+        return float('nan')
+
+
 def numeric_msg(stream, value):
     return FloatMessage.builder(stream, value)
 
 
 def dump_msg(line):
     return ByteMessage.dump(line)
+
+
+def bailout_msg(stream):
+    return BailoutMessage(stream)

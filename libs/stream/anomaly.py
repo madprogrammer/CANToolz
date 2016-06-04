@@ -1,3 +1,5 @@
+import math
+
 from collections import Iterable, Counter
 
 from libs.stream.processor import Processor
@@ -8,15 +10,22 @@ class Anomaly(Processor):
         self._state = Counter()
         self._count = 0
         self._rate = rate
+        self._stream = None
 
     def process(self, message) -> Iterable:
         point = float(message)
 
-        self._state[point] += 1
-        self._count += 1
+        if math.isnan(point):
+            self._state = Counter()
+            self._count = 0
+        else:
+            self._state[point] += 1
+            self._count += 1
 
-        if point > self._quantile(1 - self._rate):
-            yield message
+            if point > self._quantile(1 - self._rate):
+                #print("anomaly", list(map(lambda i: str(i) + ' ' + str(self._state[i]), sorted(self._state))), message)
+
+                yield message
 
     def _quantile(self, margin) -> float:
         quantile = _Quantile(margin * self._count)

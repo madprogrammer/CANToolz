@@ -1,4 +1,4 @@
-from collections import Counter, Iterable
+from collections import Iterable
 
 from libs.stream.processor import Processor
 

@@ -18,17 +18,16 @@ def test(frame: bytes, offset: int) -> bool:
 
 
 def align(frame: bytes, size: int, align: int) -> bytes:
+    shift = align - size
     result = bytearray(align)
 
-    for i in range(align):
-        if align - i - 1 < size:
-            result[i] = frame[align - i - 1]
+    for j in range(size):
+        if shift + j < align:
+            result[shift + j] = frame[j]
 
     return bytes(result)
 
 
-# assert slice_int(struct.pack('!I',
-#   int('11110111111111111111111111111111', 2)), 0, 8) == int('11110111', 2)
 def read_int(frame: bytes, offset: int, limit: int) -> int:
     result = 0
     size = len(frame)
