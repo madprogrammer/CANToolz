@@ -9,11 +9,10 @@ class Derivative(Processor):
         self._prev = None
 
     def process(self, message) -> Iterable:
-        stream = str(message)
         value = float(message)
 
         if self._prev is not None:
-            yield self._message_builder(str(stream) + '|d', value - self._prev)
+            yield self._message_builder(str(message) + '|d', value - self._prev)
 
         self._prev = value
 

@@ -23,8 +23,6 @@ class Anomaly(Processor):
             self._count += 1
 
             if point > self._quantile(1 - self._rate):
-                #print("anomaly", list(map(lambda i: str(i) + ' ' + str(self._state[i]), sorted(self._state))), message)
-
                 yield message
 
     def _quantile(self, margin) -> float:
@@ -36,7 +34,7 @@ class Anomaly(Processor):
             if quantile:
                 return point
 
-        return 1 / 0
+        return float('nan')
 
 
 class _Quantile:
