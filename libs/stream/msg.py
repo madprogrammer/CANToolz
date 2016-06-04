@@ -9,7 +9,7 @@ class ByteMessage:
 
     def __init__(self, components: list):
         self._size = int(components[1])
-        self._stream = components[0] + 'l' + str(self._size)
+        self._stream = components[0] + '|l' + str(self._size)
         self._payload = bytes.fromhex(components[2])
 
     def __bytes__(self):

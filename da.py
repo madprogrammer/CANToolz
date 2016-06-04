@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import sys
+
 from libs.stream.msg import *
 from libs.stream.separator import Separator
 from libs.stream.std_in import StdIn
@@ -22,12 +23,14 @@ def device(_):
 
 
 def main():
-    subnet = Subnet(device) * \
-             StdIn(dump_msg)
+    subnet = Subnet(device)
+    stream = subnet * StdIn(dump_msg)
 
-    for msg in subnet():
+    for msg in stream():
         if float(msg) == float(msg):
             print(msg, float(msg))
+
+    print(subnet.stats())
 
 
 if __name__ == '__main__':
