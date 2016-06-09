@@ -10,7 +10,13 @@ class ByteMessage:
     def __init__(self, components: list):
         self._size = int(components[1])
         self._stream = components[0] + '|l' + str(self._size)
-        self._payload = bytes.fromhex(components[2])
+
+        data = components[2]
+
+        if len(data) % 2 == 0:
+            self._payload = bytes.fromhex(data)
+        else:
+            self._payload = bytes.fromhex(data + '0')
 
     def __bytes__(self):
         return self._payload
@@ -45,15 +51,17 @@ class FloatMessage:
         return struct.pack('!I', int(self._value))
 
 
-class BailoutMessage:
+class Bailout:
     def __init__(self, stream):
         self._stream = stream
 
     def __str__(self):
         return self._stream
 
-    def __float__(self):
-        return float('nan')
+
+class Heartbeat:
+    def __init__(self):
+        self._stream = ''
 
 
 def numeric_msg(stream, value):
@@ -64,5 +72,3 @@ def dump_msg(line):
     return ByteMessage.dump(line)
 
 
-def bailout_msg(stream):
-    return BailoutMessage(stream)

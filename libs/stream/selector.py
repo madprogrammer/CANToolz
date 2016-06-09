@@ -8,5 +8,5 @@ class Selector(Processor):
         self._streams = streams
 
     def process(self, message) -> Iterable:
-        if str(message) in self._streams:
+        if str(message).startswith(self._streams):
             yield message

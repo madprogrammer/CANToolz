@@ -2,6 +2,7 @@ import sys
 
 from collections import Iterable
 from libs.stream.processor import Processor
+from libs.stream.msg import Heartbeat
 
 class StdIn(Processor):
 
@@ -14,3 +15,4 @@ class StdIn(Processor):
     def flush(self) -> Iterable:
         for line in sys.stdin:
             yield self._message_builder(line)
+            yield Heartbeat()

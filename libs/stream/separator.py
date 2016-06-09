@@ -18,6 +18,10 @@ class Separator(Processor):
         self._result = dict()
 
     def process(self, message) -> Iterable:
+        if isinstance(message, Heartbeat):
+            yield message
+            return
+
         msg_size = len(message)
 
         if self._state is not None:
@@ -29,9 +33,9 @@ class Separator(Processor):
         left = 0
         data = bytes(self._state)
 
-        for i, end in enumerate(self._indexes(str(message))):
+        for i, end in enumerate(self._indexes()):
             right = end
-            for bit in range(end, left, -1):
+            for bit in range(end, left - 1, -1):
                 if self._distribution[bit] == 0:
                     right = bit
 
@@ -45,7 +49,7 @@ class Separator(Processor):
 
                 if i in self._result and self._result[i] != (left, right):
                     self._result.clear()
-                    yield BailoutMessage(stream)
+                    yield Bailout(stream)
 
                 yield self._message_builder(stream, value)
 
@@ -82,7 +86,7 @@ class Separator(Processor):
 
         return gaps
 
-    def _indexes(self, s) -> iter:
+    def _indexes(self) -> iter:
         indexes = list()
         gaps = self._gaps()
         edge = stats.max_dx_edge(gaps)

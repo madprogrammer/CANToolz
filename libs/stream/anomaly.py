@@ -6,7 +6,7 @@ from libs.stream.processor import Processor
 
 
 class Anomaly(Processor):
-    def __init__(self, rate=0.01):
+    def __init__(self, rate=0.1):
         self._state = Counter()
         self._count = 0
         self._rate = rate
@@ -18,21 +18,26 @@ class Anomaly(Processor):
         if math.isnan(point):
             self._state = Counter()
             self._count = 0
+
+            yield message
         else:
             self._state[point] += 1
             self._count += 1
 
-            if point > self._quantile(1 - self._rate):
+            if point > self._quantile(1 - self._rate, point):
+                #print(self._state, self._count)
                 yield message
 
-    def _quantile(self, margin) -> float:
+    def _quantile(self, margin, p) -> float:
         quantile = _Quantile(margin * self._count)
 
         for point in sorted(self._state):
             quantile += self._state[point]
 
-            if quantile:
-                return point
+            #print("-----", p, quantile._value, quantile._acc, point)
+
+            if bool(quantile):
+                return float(point)
 
         return float('nan')
 
