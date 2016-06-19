@@ -8,11 +8,10 @@ from libs.stream.msg import Bailout
 
 class Anomaly(Processor):
 
-    def __init__(self, rate=0.1):
+    def __init__(self):
         self._state = Counter()
         self._count = 0
-        self._rate = rate
-        self._stream = None
+        self._rate = 0
 
     def process(self, message) -> Iterable:
         point = float(message)
@@ -26,12 +25,13 @@ class Anomaly(Processor):
             self._state[point] += 1
             self._count += 1
 
-            quantile, rate = self._quantile(1 - self._rate)
+            quantile, deviation = self._quantile(self._rate)
 
             if point > quantile:
-                self._rate = rate * quantile / point
+                if self._rate > 0:
+                    yield message
 
-                yield message
+                self._rate = deviation * 1.1
 
     def _quantile(self, margin) -> (float, float):
         quantile = _Quantile(margin * self._count)
@@ -40,9 +40,9 @@ class Anomaly(Processor):
             quantile += self._state[point]
 
             if bool(quantile):
-                return float(point), 1 - quantile.acc() / self._count
+                return float(point), quantile.acc() / self._count
 
-        return float('nan')
+        return float('nan'), 0
 
 
 class _Quantile:
@@ -55,7 +55,7 @@ class _Quantile:
         return self
 
     def __bool__(self):
-        return self._acc >= self._value
+        return self._acc > self._value
 
     def acc(self):
         return self._acc
