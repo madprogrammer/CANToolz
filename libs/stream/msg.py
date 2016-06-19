@@ -21,6 +21,9 @@ class ByteMessage:
     def __bytes__(self):
         return self._payload
 
+    def __float__(self):
+        return float('nan')
+
     def __len__(self):
         return self._size
 
@@ -52,16 +55,26 @@ class FloatMessage:
 
 
 class Bailout:
-    def __init__(self, stream):
-        self._stream = stream
+    STREAM = 'bi'
 
     def __str__(self):
-        return self._stream
+        return Bailout.STREAM
+
+    def __float__(self):
+        return float('nan')
 
 
 class Heartbeat:
-    def __init__(self):
-        self._stream = ''
+    STREAM = 'hb'
+
+    def __str__(self):
+        return Heartbeat.STREAM
+
+    def __float__(self):
+        return float('nan')
+
+
+
 
 
 def numeric_msg(stream, value):

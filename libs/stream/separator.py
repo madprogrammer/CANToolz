@@ -49,7 +49,7 @@ class Separator(Processor):
 
                 if i in self._result and self._result[i] != (left, right):
                     self._result.clear()
-                    yield Bailout(stream)
+                    yield Bailout()
 
                 yield self._message_builder(stream, value)
 

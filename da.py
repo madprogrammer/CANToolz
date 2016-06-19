@@ -3,12 +3,12 @@ import sys
 
 from libs.stream.msg import *
 from libs.stream.separator import Separator
-from libs.stream.selector import Selector
 from libs.stream.std_in import StdIn
 from libs.stream.subnet import Subnet
 from libs.stream.anomaly import Anomaly
 from libs.stream.derivative import Derivative
 from libs.stream.nop import Nop
+from libs.stream.heartbeat_sampler import HeartbeatSampler
 from libs.stream.freq_sampler import FreqSampler
 
 DETECTOR = {
@@ -27,16 +27,23 @@ def separator(_):
     return Separator(numeric_msg)
 
 
+# door - 0x12f(96)050 0x12f(85)050
+# ??? - 0x12f84210
+
+
 def main():
-    #stream = Subnet(detector) * Selector('0x12f84210') * FreqSampler() * StdIn(dump_msg)
-    stream = Subnet(detector) * FreqSampler() * StdIn(dump_msg)
-    #
+    histogram = Subnet(lambda _: Nop())
+    stream = histogram * Subnet(detector) * \
+             FreqSampler() * \
+             HeartbeatSampler() * \
+             StdIn(dump_msg)
 
     for msg in stream():
-        if float(msg) == float(msg):
-            print(msg, float(msg))
+        print(msg, float(msg))
+
+    stats = histogram.stats()
+    print(len(stats), stats)
 
 
 if __name__ == '__main__':
     main()
-
