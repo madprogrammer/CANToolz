@@ -12,7 +12,6 @@ class Anomaly(Processor):
         self._state = Counter()
         self._count = 0
         self._rate = rate
-        self._sensitivity = 1
         self._stream = None
 
     def process(self, message) -> Iterable:
@@ -27,22 +26,21 @@ class Anomaly(Processor):
             self._state[point] += 1
             self._count += 1
 
-            if point > self._quantile(1 - self._rate):
-                self._rate *= self._sensitivity
-                self._sensitivity = 1
+            quantile, rate = self._quantile(1 - self._rate)
+
+            if point > quantile:
+                self._rate = rate * quantile / point
 
                 yield message
-            else:
-                self._sensitivity *= 0.9
 
-    def _quantile(self, margin) -> float:
+    def _quantile(self, margin) -> (float, float):
         quantile = _Quantile(margin * self._count)
 
         for point in sorted(self._state):
             quantile += self._state[point]
 
             if bool(quantile):
-                return float(point)
+                return float(point), 1 - quantile.acc() / self._count
 
         return float('nan')
 
@@ -58,3 +56,6 @@ class _Quantile:
 
     def __bool__(self):
         return self._acc >= self._value
+
+    def acc(self):
+        return self._acc
