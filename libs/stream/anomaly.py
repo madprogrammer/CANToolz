@@ -11,7 +11,7 @@ class Anomaly(Processor):
     def __init__(self):
         self._state = Counter()
         self._count = 0
-        self._rate = 0
+        self._rate = 0.9
 
     def process(self, message) -> Iterable:
         point = float(message)
@@ -28,8 +28,7 @@ class Anomaly(Processor):
             quantile, deviation = self._quantile(self._rate)
 
             if point > quantile:
-                if self._rate > 0:
-                    yield message
+                yield message
 
                 self._rate = deviation * 1.1
 
