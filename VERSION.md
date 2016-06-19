@@ -1,5 +1,11 @@
+## Version 3.3-3
+ - **mod_stat** - ECU status changes: feature  to detect STATUS changes of ECU that can correlate to some event (door was open, now it is closed and etc)
+ 
+## Version 3.3-2
+ - **gen_ping** - UDS mode: service scan added, based on value, list or range.
+ 
 ## Version 3.3-1
- - **gen_ping** - sub-commands scan added, based on list or range.
+ - **gen_ping** - UDS mode: sub-commands scan added, based on value, list or range.
  
 ## Version 3.3-0
  - **mod_stat** - fields enumeration: this simple feature trying to detect CAN FRAME structure and extract fields
