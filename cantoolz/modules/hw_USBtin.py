@@ -17,7 +17,8 @@ class hw_USBtin(CANModule):
 
      'port' : 'auto',         # Serial port
      'debug': 2,              # debug level (default 0)
-     'speed': 50              # bus speed (500, 1000)
+     'speed': 50,             # bus speed (500, 1000)
+     'osm': 0                 # one shot mode bit (see MCP2515 datasheet)
 
     Module parameters: 
       action - 'read' or 'write'. Will write/read to/from bus
@@ -207,10 +208,18 @@ class hw_USBtin(CANModule):
         self._usbtin_loop = bool(params.get('usbtin_loop',False))
         self._restart = bool(params.get('auto_activate', False))
         self.act_time = float(params.get('auto_activate', 5.0))
+        self._osm_bit = bool(params.get('osm', False))
         self.last = time.clock()
         self.wait_for = False
         self._run = True
         self.do_stop({})
+        if self._osm_bit:
+            # CANCTRL (reg addr 0xXF):
+            # - Normal operation mode (0b000)
+            # - One Shot Mode bit set (0b1)
+            # - CLKEN = 1, CLKPRE1/0 = 0b111 (defaults)
+            self._serialPort.write(b"W0F0F\r")
+            self.dprint(1, "OSM bit was enabled")
         self.set_speed(0, str(params.get('speed', '500')) + ", " + str(params.get('sjw', '3')))
         # print str(self._serialPort)
         self.dprint(1, "PORT: " + self._COMPort)
