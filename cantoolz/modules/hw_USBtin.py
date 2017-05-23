@@ -218,7 +218,7 @@ class hw_USBtin(CANModule):
             # - Normal operation mode (0b000)
             # - One Shot Mode bit set (0b1)
             # - CLKEN = 1, CLKPRE1/0 = 0b111 (defaults)
-            self._serialPort.write(b"W0F0F\r")
+            self._serialPort.write(b"W0F8D\r")
             self.dprint(1, "OSM bit was enabled")
         self.set_speed(0, str(params.get('speed', '500')) + ", " + str(params.get('sjw', '3')))
         # print str(self._serialPort)
